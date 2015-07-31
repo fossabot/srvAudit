@@ -1,0 +1,9 @@
+#!/bin/bash
+
+function startSlack {
+	curl -s -X POST --data-urlencode 'payload={"channel": "'"$slackChannel"'", "username": "Friendly srvAudit Notifier", "pretext": "'"$auditMessage"'","text":"'"$issueSubject"'","color":"good","fields": [{"title":"Issue","value": "<'"$redmineURL"'/issues/'"$ticket"'|#'"$ticket"'>","short": true},{"title": "Environment","value": "Dev","short": true}]}' $slackURL > /dev/null &
+}
+
+function slackEnd {
+	curl -s -X POST --data-urlencode 'payload={"channel": "'"$slackChannel"'", "username": "Friendly srvAudit Notifier", "pretext": "'"$auditMessage"'","text":"'"$issueSubject"'\nNotes: '"$issueNotes"'","color":"danger","fields": [{"title":"Issue","value": "<'"$redmineURL"'/issues/'"$ticket"'|#'"$ticket"'>","short": true},{"title": "Environment","value": "Dev","short": true},{"title":"Session Duration","value": "'"$sessionDuration"'","short": true}]}' $slackURL > /dev/null
+}

@@ -1,0 +1,104 @@
+#!/bin/bash
+
+function startRedmine {
+  json="{\"issue\":{\"notes\":\"$user has started a session on host $HOSTNAME.\",\"status_id\":$beginSessionStatusID}}"
+  curl --ciphers ecdhe_ecdsa_aes_128_sha -H "Content-Type: application/json" -X PUT --data "$json" -H "X-Redmine-API-Key: $redmineKey" $redmineURL/issues/$ticket\.json
+  theJSON=$(curl --ciphers ecdhe_ecdsa_aes_128_sha --silent -H "Content-Type: application/json" -H "X-Redmine-API-Key: $redmineKey" $redmineURL/issues/$ticket\.json)
+  issueSubject=$(echo "$theJSON" | jshon -e issue -e subject 2>&1 | tr -d '"')
+  if [[ $issueSubject == *"json read error"* ]]; then
+    echo "Not a valid Redmine issue. Please try again or check your /etc/srvaudit/config file if this issue persists."
+    getTicket
+		promptForTicket
+  fi  
+}
+
+function redmineEnd {
+	# POST /tmp/"$user"srvHistory
+ 	curl --ciphers ecdhe_ecdsa_aes_128_sha -s -H "Content-Type: application/json" -X PUT --data @/tmp/"$user"srvHistory -H "X-Redmine-API-Key: $redmineKey" $redmineURL/issues/$SRVAUDIT_TICKET\.json > /dev/null
+}
+
+function redmineIssueStatus {
+  # get issue types
+  theJSON=$(curl --ciphers ecdhe_ecdsa_aes_128_sha --silent -H "Content-Type: application/json" -H "X-Redmine-API-Key: $redmineKey" $redmineURL/issue_statuses.json)
+  statusCount=$(echo "$theJSON" | jshon -e issue_statuses -a -e id -u|wc -l )
+  i=0
+  while [ $i -lt $statusCount ]
+  do
+    statusID=$(echo "$theJSON" | jshon -e issue_statuses -e $i -e id -u)
+    statusName=$(echo "$theJSON" | jshon -e issue_statuses -e $i -e name -u)
+    echo "   $statusID) $statusName"
+    let i=i+1
+  done
+  read -p "Choose $ticketType status (default $endSessionStatusID): " redmineStatus
+	if [ "$redmineStatus" = "" ]; then
+		redmineStatus=$endSessionStatusID
+  else
+		while [ "$redmineStatus" = 0 ] || [ "$redmineStatus" -gt "$statusCount" ]; do
+   	 echo "Please enter a valid status"
+  		read -p "Choose $ticketType status ($endSessionStatusID): " redmineStatus
+  	done
+	fi
+}
+
+function newRedmineIssue {
+  # get projects
+  theJSON=$(curl --ciphers ecdhe_ecdsa_aes_128_sha --silent -H "Content-Type: application/json" -H "X-Redmine-API-Key: $redmineKey" $redmineURL/projects.json)
+  projectCount=$(echo "$theJSON" | jshon -e projects -a -e id -u|wc -l )
+	if [ $projectCount -gt 1 ]; then
+	  echo "$projectCount $pms projects are available"
+	  # list projects
+	  i=0
+	  while [ $i -lt $projectCount ]
+	  do
+	    projectID=$(echo "$theJSON" | jshon -e projects -e $i -e id -u)
+	    projectName=$(echo "$theJSON" | jshon -e projects -e $i -e name -u)
+	    echo "   $projectID) $projectName"
+	    let i=i+1
+	  done
+	  issueProject=""
+		# user prompt for project
+	  read -p "Choose project for new $ticketType: " issueProject
+	  while [ "$issueProject" = "" ] || [ "$issueProject" = 0 ] || [ "$issueProject" -gt "$projectCount" ]; do
+	    echo "Please enter a valid Project"
+	    read -p "Choose project for new $ticketType: " issueProject
+	    echo "$issueProject"
+	  done
+	else
+		issueProject=1
+	fi
+  # get/list/prompt for issue type
+  theJSON=$(curl --ciphers ecdhe_ecdsa_aes_128_sha --silent -H "Content-Type: application/json" -H "X-Redmine-API-Key: $redmineKey" $redmineURL/trackers.json)
+  trackerCount=$(echo "$theJSON" | jshon -e trackers -a -e id -u|wc -l )
+  echo "$trackerCount $ticketType trackers are available"
+  i=0
+  while [ $i -lt $trackerCount ]
+  do
+    trackerID=$(echo "$theJSON" | jshon -e trackers -e $i -e id -u)
+    trackerName=$(echo "$theJSON" | jshon -e trackers -e $i -e name -u)
+    echo "   $trackerID) $trackerName"
+    let i=i+1
+  done
+  # get/list/prompt for tracker
+  read -p "Choose tracker for new $ticketType: " issueTracker
+  while [ "$issueTracker" = "" ] || [ "$issueTracker" = 0 ] || [ "$issueTracker " -gt "$trackerCount" ]; do
+    echo "Please enter a valid Tracker"
+    read -p "Choose tracker for new $ticketType: " issueTracker
+  done
+  # get issue subject
+  read -p "Enter subject for new $ticketType: " issueSubject
+  while [ "$issueSubject" = "" ]; do
+    echo "Please enter a valid Subject"
+    read -p "Enter subject for new $ticketType: " issueSubject
+  done
+  # create Redmine issue
+  newIssue=$(curl --ciphers ecdhe_ecdsa_aes_128_sha --silent -X POST --data '{"issue":{"project_id":'"$issueProject"',"subject":"'"$issueSubject"'","tracker_id":'"$issueTracker"'}}' -H "Content-Type: application/json" -H "X-Redmine-API-Key: $redmineKey" $redmineURL/issues.json)
+  newIssueID=$(echo "$newIssue" | jshon -e issue -e id)
+  newProject=$(echo "$newIssue" | jshon -e issue -e project -e name -u)
+  trackerID=$(($issueTracker-1))
+  trackerName=$(echo "$theJSON" | jshon -e trackers -e "$trackerID" -e name -u)
+  echo "$trackerName #$newIssueID, '$issueSubject', created in project $newProject. See $redmineURL/issues/$newIssueID"
+  ticket="$newIssueID"
+  $(echo "$ticket" > /tmp/"$user"SrvAuditTicketID)
+  export SRVAUDIT_TICKET=$ticket
+  return
+}

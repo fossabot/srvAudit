@@ -1,0 +1,21 @@
+#!/bin/bash
+
+thedate=$(date)
+user=$(whoami)
+realuser=$(who am i|awk '{print $1}')
+ticket=""
+case $pms in
+  Redmine)	ticketType=issue
+						source /srv/audit/redmine;;
+  			*)	ticketType=ticket;;
+esac
+
+function logger {
+	$(echo "$thedate $@" >> $logFile)
+}
+
+# spin the audit
+source /srv/audit/control
+echo "Hello, $user. This session is monitored by srvAudit"
+getTicket
+promptForTicket

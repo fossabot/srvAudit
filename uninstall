@@ -1,0 +1,28 @@
+#!/bin/bash
+function srvAuditReset {
+	# uninstall ASH
+	cd /srv/audit/ash && make uninstall && cd -
+	# remove config and app directories
+	rm -rf /etc/srvaudit
+	rm -rf /srv/audit
+	# remove srvAudit from /etc/shells, bashrc, and /etc/passwd
+	grep -v audit /etc/shells > shells && mv shells /etc/shells
+	grep -v advanced_shell_history /etc/bash.bashrc > bashrc && chmod 0644 bashrc && mv bashrc /etc/bash.bashrc
+	perl -pi -e 's/\/srv\/audit\/hello/\/bin\/bash/' /etc/passwd
+	# TODO harsh removal not preserving previous config 
+	rm /etc/bash.bash_logout
+	# remove /srv/audit/bin from environment
+	perl -pi -e 's/\/srv\/audit\/bin://' /etc/environment
+	echo "Please log out to complete srvAudit removal.  Update to the latest version of srvAudit with:"
+	echo "curl -sSL https://srvaudit.com/install | sudo sh"
+	exit
+}
+
+read -p "Remove srvAudit? (y/N) " cont
+while true
+do
+	case $cont in
+		[Yy] ) srvAuditReset;;
+		* ) echo "Good call"; exit;;
+	esac
+done

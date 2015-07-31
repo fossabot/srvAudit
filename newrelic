@@ -1,0 +1,49 @@
+#!/bin/bash
+
+function startNR {
+	curl -s $newRelicURL \
+    -H "X-License-Key: $newRelicLicenseKey" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -X POST -d '{
+      "agent": {
+        "host" : "'"$srvAuditHost"'",
+        "pid" : "'"$srvAuditPid"'",
+        "version" : "'"$newRelicPluginVersion"'"
+      },
+      "components": [
+        {
+          "name": "srvAudit Login - '"$user"'",
+          "guid": "com.srvaudit.srvaudit",
+          "duration" : 60,
+          "metrics" : {
+            "Component/ServerLogins[Logins/Minute]": 1
+          }
+        }
+      ]
+    }' > /dev/null
+}
+
+function endNR {
+	curl -s $newRelicURL \
+    -H "X-License-Key: $newRelicLicenseKey" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -X POST -d '{
+      "agent": {
+        "host" : "'"$srvAuditHost"'",
+        "pid" : "'"$srvAuditPid"'",
+        "version" : "'"$newRelicPluginVersion"'"
+      },
+      "components": [
+        {
+          "name": "srvAudit Logout - '"$user"'",
+          "guid": "com.srvaudit.srvaudit",
+          "duration" : 60,
+          "metrics" : {
+            "Component/ServerLogouts[Logouts/Minute]": 1
+          }
+        }
+      ]
+    }' > /dev/null
+}

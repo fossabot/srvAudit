@@ -1,0 +1,170 @@
+#!/bin/bash
+## Includes!
+if [[ -f /etc/srvaudit/config ]]; then
+	source /etc/srvaudit/config
+else
+	echo "No configuration found.  Please add /etc/srvaudit/config.  Falling back to bash."
+	/bin/bash -l
+	exit;
+fi
+source /srv/audit/redmine
+source /srv/audit/slack
+source /srv/audit/newrelic
+
+## Converts seconds to D/H/M
+convertTime() {
+  ((h=${1}/3600))
+  ((m=(${1}%3600)/60))
+  ((s=${1}%60))
+  if [ $1 -gt 3600 ]; then
+    printf "%02d hours, %02d minutes, and %02d seconds\n" $h $m $s
+    return
+  elif [ $1 -gt 60 ]; then
+    printf "%02d minutes, and %02d seconds\n" $m $s
+    return
+  else
+    printf "%02d seconds\n" $s
+    return
+  fi  
+}
+
+function promptForTicket {
+	while true
+	do
+	  case $ticket in
+	    [1-99999]* ) startAudit;;
+	    "")          newTicket;;
+	    * )          echo "Please enter a valid $pms $ticketType number"
+	                 getTicket;;
+	  esac
+	done
+}
+
+## Get ticket ID for session
+function getTicket {
+  ## if this is another session from the same user
+  if [[ "$user" == "$realuser" ]]; then
+		## reset ticket
+		unset ticket
+    ## if no parent session, prompt for ticket
+    read -p "Enter $pms $ticketType number (blank for new $ticketType): " ticket
+    $(echo "$ticket" > /tmp/"$user"SrvAuditTicketID)
+  else
+    ticket=$(cat /tmp/"$realuser"SrvAuditTicketID 2>/dev/null)
+    $(echo "$ticket" > /tmp/"$user"SrvAuditTicketID)
+  fi
+  export SRVAUDIT_TICKET=$ticket
+}
+
+function newTicket {
+  echo "Okay, creating new $pms $ticketType"
+  case $pms in
+    "Redmine" ) newRedmineIssue
+                startAudit;;
+    * ) echo "Not supported."
+       return;;
+  esac
+}
+
+function startAudit {
+  if [[ "$user" == "$realuser" ]]; then
+		# disable user history control
+		if [ -f /home/$(whoami)/.bashrc ]; then
+			perl -pi -e 's/^HISTCONTROL/#HISTCONTROL/' /home/$(whoami)/.bashrc
+		fi
+	fi
+	# add history.db if not exists
+	if [ ! -f ~/.ash/history.db ]; then
+		mkdir ~/.ash
+		cp /srv/audit/ash/history.db ~/.ash/
+	fi
+	if [[ $(cat /etc/*release|grep -c CentOS) -gt 0 ]]; then
+		if [[ $(cat ~/.bash_logout|grep -c ASH) -eq 0 ]]; then
+			## update sessionID on bash logout
+			echo "echo \$ASH_SESSION_ID > /tmp/\$(whoami)SrvAuditSessionID" > ~/.bash_logout
+		fi
+	fi
+  export SESSION_ID=$(sqlite3 ~/.ash/history.db 'select id from sessions order by id desc limit 1')
+  logMessage="$user"' '"$HOSTNAME"' '"$(($SESSION_ID+1))"' login '"$redmineURL"'/issues/'"$ticket"''
+  auditMessage="Hello, $user started a session on $HOSTNAME"
+  logger $logMessage
+  case $pms in
+    "Redmine" ) startRedmine;;
+    * ) echo "PMS not configured, please edit /etc/srvaudit/config. Falling back to bash.";;
+  esac
+  if [ $slackEnabled == 1 ]; then
+    startSlack
+  fi
+  if [ $newRelicEnabled == 1 ]; then
+    startNR
+  fi
+  ## TODO SHLVL
+  /bin/bash -l
+  exitAudit
+}
+
+## Creates tmp file for POSTing to $pms
+function buildHistory {
+  # Get the fucking history from ASH
+  ashHistory=$(ash_query -d ~/.ash/history.db -q ME)
+	if [ -n "$ashHistory" ]; then
+	  # Build JSON history file to POST to Redmine
+	  echo "" > /tmp/"$user"srvHistory
+	  echo "{\"issue\":{\"status_id\":$redmineStatus,\"notes\":\"$auditMessage. Session duration was $sessionDuration." > /tmp/"$user"srvHistory
+	  if [[ $issueNotes != "" ]]; then
+	    echo "\n\n" >> /tmp/"$user"srvHistory
+	    echo "$user's notes: $issueNotes" >> /tmp/"$user"srvHistory
+	  fi
+	  echo "\n\n" >> /tmp/"$user"srvHistory
+	  echo "Session history:" >> /tmp/"$user"srvHistory
+	  echo "<pre>" >> /tmp/"$user"srvHistory
+	  while read line; do
+	    echo "$line\n" >> /tmp/"$user"srvHistory
+	  done <<< "$ashHistory"
+	  echo "</pre>\"}}" >> /tmp/"$user"srvHistory
+	else
+	  echo "" > /tmp/"$user"srvHistory
+	  echo "{\"issue\":{\"status_id\":$redmineStatus,\"notes\":\"$auditMessage. Session duration was $sessionDuration." > /tmp/"$user"srvHistory
+	  if [[ $issueNotes != "" ]]; then
+	    echo "\n\n" >> /tmp/"$user"srvHistory
+	    echo "$user's notes: $issueNotes" >> /tmp/"$user"srvHistory
+	  fi
+	  echo "\n\n" >> /tmp/"$user"srvHistory
+	  echo "No commands were entered for this session." >> /tmp/"$user"srvHistory
+	  echo "</pre>\"}}" >> /tmp/"$user"srvHistory
+	fi
+}
+
+function endAudit {
+  if [[ "$user" == "$realuser" ]]; then
+    read -p "Enter session notes for $ticketType $SRVAUDIT_TICKET: " issueNotes
+  fi
+  export ASH_SESSION_ID=$(cat /tmp/"$user"SrvAuditSessionID)
+  sessionDurationSeconds=$(sqlite3 ~/.ash/history.db 'select duration from sessions where id='"$ASH_SESSION_ID"'')
+  sessionDuration=$(convertTime $sessionDurationSeconds)
+  auditMessage="Hello, $user ended a session on $HOSTNAME"
+  logMessage="$user"' '"$HOSTNAME"' '"$ASH_SESSION_ID"' logout '"$redmineURL"'/issues/'"$ticket"''
+  logger $logMessage
+	if [ $pms == "Redmine" ]; then
+	  redmineIssueStatus
+	fi
+  touch /tmp/"$user"srvHistory
+  buildHistory
+  # post to Redmine TODO separate function
+  if [ $pms == "Redmine" ]; then
+    redmineEnd
+  fi
+  # post to Slack
+  if [ $slackEnabled == 1 ]; then
+    slackEnd
+  fi
+  rm /tmp/"$user"srvHistory
+}
+
+function exitAudit {
+	endAudit
+  if [ $newRelicEnabled == 1 ]; then
+    endNR
+  fi
+  exit;
+}

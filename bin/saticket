@@ -1,0 +1,32 @@
+#!/bin/bash
+## Includes!
+exit;
+if [[ -f /etc/srvaudit/config ]]; then
+	source /etc/srvaudit/config
+else
+	echo "No configuration found.  Please add /etc/srvaudit/config.  Falling back to bash."
+	/bin/bash -l
+	exit;
+fi
+source /srv/audit/redmine
+source /srv/audit/slack
+source /srv/audit/newrelic
+source /srv/audit/control
+
+## catch option switch
+saoption=$1
+
+## spin a case to catch the first command argument
+while true
+do
+  case $saoption in
+		## enter ticket notes and spin new audit session
+    ""|"-N"|"-n" )  endAudit
+										getTicket
+										promptForTicket;;
+    * )         		echo "Please enter a valid option"
+										echo "-n or -N ) Add notes and start new srvAudit session"
+                		getTicket
+										promptForTicket;;
+  esac
+done

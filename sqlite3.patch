@@ -1,0 +1,20 @@
+--- fetch_sqlite.sh     2015-02-23 16:07:04.431367582 +0000
++++ ash-0.5/src/fetch_sqlite.sh 2012-08-14 17:50:24.000000000 +0000
+@@ -78,16 +78,14 @@
+       | sed -e 's:.*href=./sqlite-amalgamation-\([0-9]*\)\.zip.*:\1:' \
+     )"
+   fi
+-  SQLITE_VER="3080802"
+   if [ -z "${SQLITE_VER:-}" ]; then
+     fatal "Failed to find an amalgamation download here: ${download_url}"
+   fi
+ 
+   SQLITE_DIR="sqlite-amalgamation-${SQLITE_VER}"
+   SQLITE_ZIP="${SQLITE_DIR}.zip"
+-  SQLITE_URL="http://www.sqlite.org/2015/${SQLITE_ZIP}"
++  SQLITE_URL="http://www.sqlite.org/${SQLITE_ZIP}"
+ 
+-  echo "${SQLITE_URL}" "${SQLITE_ZIP}"
+   fetch "${SQLITE_URL}" "${SQLITE_ZIP}"
+ }
+

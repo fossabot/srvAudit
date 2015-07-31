@@ -1,0 +1,25 @@
+#!/bin/bash
+
+srvAuditHost=$(hostname)
+srvAuditPID="$$"
+logFile="/var/log/srvaudit.log"
+
+## Project Management System configuration
+pms=""
+beginSessionStatusID=2
+endSessionStatusID=4
+
+## Redmine configuration
+redmineKey=""
+redmineURL=""
+
+## Slack configuration
+slackEnabled=0
+slackURL=""
+slackChannel=""
+
+## NewRelic configuration
+newRelicEnabled=0
+newRelicPluginVersion="0.1.0"
+newRelicURL="https://platform-api.newrelic.com/platform/v1/metrics"
+newRelicLicenseKey=""
