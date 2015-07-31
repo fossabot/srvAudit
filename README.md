@@ -128,7 +128,7 @@ Use `ash_query -q ME` to see Advanced Session History.  See [ASH docs](https://c
 Known Issues
 ------------
 
-* No security review yet.  srvAudit is not to be considered a security tool at our current early stage of development.  Still, there can be many benefits from this tool.  We plan to have a full, professional, and 3rd party security review once we stabilize.
+* No security review yet.  srvAudit is not to be considered a security tool at our current early stage of development.  Still, there can be many benefits from this tool.  We plan to undergo a independent 3rd party security review once we stabilize.
 * Any interactive logins or automated SSH processes will need to send a ticket number after login, using the [expect](http://expect.sourceforge.net/) utility, for example.
 
 Troubleshooting
