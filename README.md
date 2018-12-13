@@ -4,6 +4,7 @@ Why Audit?
 --------
 
 [![Join the chat at https://gitter.im/srvaudit/srvAudit](https://badges.gitter.im/srvaudit/srvAudit.svg)](https://gitter.im/srvaudit/srvAudit?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fsrvaudit%2FsrvAudit.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fsrvaudit%2FsrvAudit?ref=badge_shield)
 
 Session and command auditing is a crucial defense against unwanted intrusions.  With the ever increasing number of cyber attacks, including state sponsored attacks, it is increasingly important for all organizations to secure their data against economic sabotage.  srvAudit's remote session logging can help quickly detect unwanted logins and uncover critical intrusion evidence.  srvAudit also will help your infrastructure meet change recording and other requirements for several auditing standards including SSAE-16 SOC1 / SOC2 Type II, SAS-70, HIPAA, and others.
 
@@ -168,3 +169,7 @@ License
 
 The project is licensed under the MIT license.
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fsrvaudit%2FsrvAudit.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fsrvaudit%2FsrvAudit?ref=badge_large)
